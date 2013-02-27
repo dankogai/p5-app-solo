@@ -1,5 +1,4 @@
-[![build status](https://secure.travis-ci.org/dankogai/p5-app-solo.png)](http:/\
-/travis-ci.org/dankogai/p5-app-solo)
+[![build status](https://secure.travis-ci.org/dankogai/p5-app-solo.png)](http://travis-ci.org/dankogai/p5-app-solo)
 
 p5-app-solo
 ===========
