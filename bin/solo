@@ -6,24 +6,36 @@ solo - run only one process up to given timeout.
 
 =head1 VERSION
 
-$Id: solo,v 0.3 2013/02/27 10:59:59 dankogai Exp dankogai $
+$Id: solo,v 0.4 2013/02/27 14:49:47 dankogai Exp dankogai $
 
 =head1 SYNOPSIS
 
-  solo -t seconds [-P pidfile] [-K signal] cmd ...
+  solo [-t seconds] [-P pidfile] [-K signal] cmd ...
 
 =head1 DESCRIPTION
 
 This program runs I<cmd> up to the seconds then sends SIGTERM after
-that.  If it find that I<cmd> is already running, it terminates with
-the error message with its PID.
+that.
+
+If I<cmd> is already running, it terminates with the error message
+with its PID.
+
+If the previous session exited abnormally (exit code != 0, including
+timeout), it terminates with the errar message with how the last
+sesion ended. 
 
 =over 2
 
+=item -f
+
+Force execution even if the last session ended abnormally.  Note
+C<solo> still refuse to execute the command if another session is in
+progress.
+
 =item -t seconds
 
-Sets the timeout in second.  You cannot omit this.  Fractional seconds
-accepted since it uses L<Time::HiRes>.
+Sets the timeout in second.  When ommited, 86400 (= 1d) is used. 
+Fractional seconds accepted thanks to  L<Time::HiRes>.
 
 =item -P pidfile
 
@@ -59,16 +71,18 @@ use File::Basename qw/basename/;
 use File::Spec qw/catfile/;
 use POSIX qw/:sys_wait_h strerror/;
 
-our $VERSION = sprintf "%d.%02d", q$Revision: 0.3 $ =~ /(\d+)/g;
+our $VERSION = sprintf "%d.%02d", q$Revision: 0.4 $ =~ /(\d+)/g;
 
 use constant DEBUG => 0;
 
 sub usage { exec 'pod2text', $0 }
 
-getopts ':t:K:P' => \my %opt;
-my $timeout = $opt{t} ? 0 + $opt{t} : 0;
-usage unless $timeout;
-my $cmd = shift;
+getopts 'ft:K:P:' => \my %opt;
+
+my $cmd = shift or usage();
+
+my $timeout = $opt{t} ? 0 + $opt{t} : 86400;
+
 if ( !-x $cmd ) {
     my $which = qx/which $cmd/;
     chomp $which;
@@ -80,26 +94,47 @@ my $pidfile = $opt{P} || do {
     File::Spec->catfile( $dir, basename($cmd) . '.pid' );
 };
 
-sub getcpid {
+sub readpidfile {
     open my $fh, '<', $pidfile or die "$pidfile:$!";
-    my $pid = <$fh>;
+    my @lines = <$fh>;
     close $fh;
-    return 0 + $pid;
+    chomp @lines;
+    return @lines;
 }
 
-die "$cmd: already running (", getcpid(), ").\n" if -f $pidfile;
+if ( -f $pidfile ) {
+    my @lines = readpidfile();
+    if ( @lines == 1 ) {
+        die "$cmd: already running ($lines[0]).\n";
+    }
+    else {
+        if ( $opt{f} ) {
+            unlink $pidfile;
+        }
+        else {
+            die "$cmd: Last session ended abnormally: ", 
+            strerror($lines[1]), " ($lines[1]).\n";
+        }
+    }
+}
 
 my $ksig = $opt{K} || 'TERM';
-open my $pidfh, '>', $pidfile or die "$pidfile:$!";
-my $cpid;
 
 sub cleanup {
     my $code = shift || 0;
     warn $code if DEBUG;
     $code = 0 if $code =~ /^[A-Z]+$/;    # via signal handler
-    kill $ksig => getcpid();
-    unlink $pidfile;
-    warn "$cmd: ", strerror($code), "\n" if $code;
+    my @lines = readpidfile();
+    kill $ksig => $lines[0];
+    if ( !$code ) {
+        unlink $pidfile;
+    }
+    else {
+        open my $pidfh, '>>', $pidfile or die "$pidfile:$!";
+        print {$pidfh} $code, "\n";
+        close $pidfh;
+        warn "$cmd: ", strerror($code), "\n";
+    }
     exit $code;
 }
 
@@ -108,7 +143,8 @@ $SIG{INT} = $SIG{TERM} = \&cleanup;
 eval {
     local $SIG{ALRM} = sub { die ETIMEDOUT, "\n" };
     alarm $timeout;
-    $cpid = fork();
+    open my $pidfh, '>', $pidfile or die "$pidfile:$!";
+    my $cpid = fork();
     die $! unless defined $cpid;
     if ($cpid) {
         print {$pidfh} $cpid, "\n";
@@ -120,7 +156,7 @@ eval {
     }
     alarm 0;
 };
-cleanup($@);
+cleanup( ( $? >> 8 ) || $@ );
 
 1;
 __END__
