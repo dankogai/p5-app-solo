@@ -9,7 +9,7 @@ SYNOPSIS
 --------
 
 ````
-solo -t seconds [-P pidfile] [-K signal] cmd ...
+solo [-t seconds] [-P pidfile] [-K signal] cmd ...
 ````
 
 DESCRIPTION
