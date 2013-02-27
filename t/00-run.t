@@ -20,7 +20,7 @@ my $outfile = "t/$$";
 
 my $err = system qq{./bin/solo.pl -t 0.1 sleep 1 > $outfile 2>&1};
 ok $err, "exit status = $err";
-like slurp($outfile), qr/Operation timed out/, "Message";
+isnt -s $outfile, 0, "Message";
 $err = system qq{./bin/solo.pl -t 2 sleep 1 > $outfile 2>&1};
 ok !$err, "exit status = $err";
 is -s $outfile, 0,  "No Message";
