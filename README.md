@@ -15,22 +15,30 @@ solo -t seconds [-P pidfile] [-K signal] cmd ...
 DESCRIPTION
 -----------
 
-This program runs cmd up to the seconds then sends SIGTERM after that.
-If it find that cmd is already running, it terminates with the error
-message with its PID.
+This program runs *cmd* up to the seconds then sends SIGTERM after that.
 
-* -t seconds
-Sets the timeout in second.  You cannot omit this.
+If *cmd* is already running, it terminates with the error message with
+its PID.
 
-* -P pidfile
+If the previous session exited abnormally (exit code != 0, including
+timeout), it terminates with the errar message with how the last sesion
+ended.
 
-The path to the PID file.  By default it is "/var/run/cmd.pid" if you
-are root, "/var/tmp/cmd.pid"  otherwise.
+    -f
+      Force execution even if the last session ended abnormally. Note "solo"
+      still refuse to execute the command if another session is in progress.
 
-* -K signal
+    -t seconds
+      Sets the timeout in second. When ommited, 86400 (= 1d) is used.
+      Fractional seconds accepted thanks to Time::HiRes.
 
-This option overrides default signal to be sent on timeout. SIGTERM
-by default.
+    -P pidfile
+      The path to the PID file. By default it is "/var/run/*cmd*.pid" if you
+      are root, "/var/tmp/*cmd*.pid" otherwise.
+
+    -K signal
+      This option overrides default signal to be sent on timeout. SIGTERM by
+      default.
 
 LICENSE AND COPYRIGHT
 ---------------------
