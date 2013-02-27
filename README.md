@@ -40,6 +40,39 @@ ended.
       This option overrides default signal to be sent on timeout. SIGTERM by
       default.
 
+EXAMPLE
+-------
+
+````
+% cat sleep.pl
+#!/usr/bin/env perl
+use strict;
+use warnings;
+my $seconds = shift || 1;
+while ($seconds > 0) {
+    print $seconds--, "\n";
+    sleep 1;
+}    
+% ./sleep.pl 3
+3
+2
+1
+% solo -t 2 ./sleep.pl 3
+3
+2
+./sleep.pl: Operation timed out
+% solo -t 2 ./sleep.pl 3
+./sleep.pl: Last session ended abnormally: Operation timed out (60).
+% solo -f -t 4 ./sleep.pl 3
+3
+2
+1
+% solo ./sleep.pl 3
+3
+2
+1
+````
+
 LICENSE AND COPYRIGHT
 ---------------------
 
