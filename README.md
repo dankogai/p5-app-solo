@@ -14,6 +14,7 @@ solo -t seconds [-P pidfile] [-K signal] cmd ...
 ````
 
 DESCRIPTION
+-----------
 
 This program runs cmd up to the seconds then sends SIGTERM after that.
 If it find that cmd is already running, it terminates with the error
