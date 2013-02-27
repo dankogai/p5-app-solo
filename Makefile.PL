@@ -6,8 +6,8 @@ use ExtUtils::MakeMaker;
 WriteMakefile(
     NAME         => 'App::solo',
     AUTHOR       => q{Dan Kogai <dankogai+cpan@gmail.com>},
-    VERSION_FROM => 'bin/solo.pl',
-    # ABSTRACT_FROM    => 'bin/solo.pl',
+    VERSION_FROM => 'bin/solo',
+    # ABSTRACT_FROM    => 'bin/solo',
     ABSTRACT           => 'run only one process up to given timeout',
     LICENSE            => 'Artistic_2_0',
     PL_FILES           => {},
@@ -22,6 +22,7 @@ WriteMakefile(
         #'ABC'              => 1.6,
         #'Foo::Bar::Module' => 5.0401,
     },
+    EXE_FILES => ['bin/solo'],
     dist  => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean => { FILES    => 'App-solo-*' },
 );

@@ -6,7 +6,7 @@ solo - run only one process up to given timeout.
 
 =head1 VERSION
 
-$Id: solo.pl,v 0.2 2013/02/27 10:28:09 dankogai Exp dankogai $
+$Id: solo,v 0.3 2013/02/27 10:59:59 dankogai Exp dankogai $
 
 =head1 SYNOPSIS
 
@@ -59,14 +59,15 @@ use File::Basename qw/basename/;
 use File::Spec qw/catfile/;
 use POSIX qw/:sys_wait_h strerror/;
 
-our $VERSION = sprintf "%d.%02d", q$Revision: 0.2 $ =~ /(\d+)/g;
+our $VERSION = sprintf "%d.%02d", q$Revision: 0.3 $ =~ /(\d+)/g;
 
 use constant DEBUG => 0;
 
 sub usage { exec 'pod2text', $0 }
 
 getopts ':t:K:P' => \my %opt;
-my $timeout = 0 + $opt{t} or usage();
+my $timeout = $opt{t} ? 0 + $opt{t} : 0;
+usage unless $timeout;
 my $cmd = shift;
 if ( !-x $cmd ) {
     my $which = qx/which $cmd/;
