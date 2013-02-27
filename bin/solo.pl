@@ -6,7 +6,7 @@ solo - run only one process up to given timeout.
 
 =head1 VERSION
 
-$Id: solo.pl,v 0.1 2013/02/27 10:14:48 dankogai Exp dankogai $
+$Id: solo.pl,v 0.2 2013/02/27 10:28:09 dankogai Exp dankogai $
 
 =head1 SYNOPSIS
 
@@ -22,7 +22,8 @@ the error message with its PID.
 
 =item -t seconds
 
-Sets the timeout in second.  You cannot omit this.
+Sets the timeout in second.  You cannot omit this.  Fractional seconds
+accepted since it uses L<Time::HiRes>.
 
 =item -P pidfile
 
@@ -58,7 +59,7 @@ use File::Basename qw/basename/;
 use File::Spec qw/catfile/;
 use POSIX qw/:sys_wait_h strerror/;
 
-our $VERSION = sprintf "%d.%02d", q$Revision: 0.1 $ =~ /(\d+)/g;
+our $VERSION = sprintf "%d.%02d", q$Revision: 0.2 $ =~ /(\d+)/g;
 
 use constant DEBUG => 0;
 
