@@ -1,7 +1,7 @@
 #
 # Revision history for App-solo
 #
-$Revision: 0.4 $ $Date: 2013/02/27 14:49:47 $
+$Revision: 0.5 $ $Date: 2013/03/01 13:50:48 $
 ! bin/solo
   Addressed: unlikely yet possible race condition noted by @satoh_fumiyasu
   https://twitter.com/satoh_fumiyasu/status/307469411332272128

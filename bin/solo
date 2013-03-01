@@ -6,7 +6,7 @@ solo - run only one process up to given timeout.
 
 =head1 VERSION
 
-$Id: solo,v 0.4 2013/02/27 14:49:47 dankogai Exp dankogai $
+$Id: solo,v 0.5 2013/03/01 13:50:48 dankogai Exp dankogai $
 
 =head1 SYNOPSIS
 
@@ -72,7 +72,7 @@ use File::Spec qw/catfile/;
 use POSIX qw/:sys_wait_h strerror/;
 use Fcntl qw/:DEFAULT/;
 
-our $VERSION = sprintf "%d.%02d", q$Revision: 0.4 $ =~ /(\d+)/g;
+our $VERSION = sprintf "%d.%02d", q$Revision: 0.5 $ =~ /(\d+)/g;
 
 use constant DEBUG => 0;
 
