@@ -70,6 +70,7 @@ use Errno qw/:POSIX/;
 use File::Basename qw/basename/;
 use File::Spec qw/catfile/;
 use POSIX qw/:sys_wait_h strerror/;
+use Fcntl qw/:DEFAULT/;
 
 our $VERSION = sprintf "%d.%02d", q$Revision: 0.4 $ =~ /(\d+)/g;
 
@@ -97,10 +98,12 @@ my $pidfile = $opt{P} || do {
 sub readpidfile {
     open my $fh, '<', $pidfile or die "$pidfile:$!";
     my @lines = <$fh>;
-    close $fh;
+    close $fh or die "$pidfile:$!";
     chomp @lines;
     return @lines;
 }
+
+my $soflag = O_WRONLY|O_CREAT|O_EXCL;
 
 if ( -f $pidfile ) {
     my @lines = readpidfile();
@@ -109,11 +112,11 @@ if ( -f $pidfile ) {
     }
     else {
         if ( $opt{f} ) {
-            unlink $pidfile;
+            $soflag = O_WRONLY;
         }
         else {
-            die "$cmd: Last session ended abnormally: ", 
-            strerror($lines[1]), " ($lines[1]).\n";
+            die "$cmd: Last session ended abnormally: ",
+              strerror( $lines[1] ), " ($lines[1]).\n";
         }
     }
 }
@@ -124,6 +127,7 @@ sub cleanup {
     my $code = shift || 0;
     warn $code if DEBUG;
     $code = 0 if $code =~ /^[A-Z]+$/;    # via signal handler
+    $code >>= 8 if $code >= 256;          # timed out
     my @lines = readpidfile();
     kill $ksig => $lines[0];
     if ( !$code ) {
@@ -143,10 +147,10 @@ $SIG{INT} = $SIG{TERM} = \&cleanup;
 eval {
     local $SIG{ALRM} = sub { die ETIMEDOUT, "\n" };
     alarm $timeout;
-    open my $pidfh, '>', $pidfile or die "$pidfile:$!";
     my $cpid = fork();
     die $! unless defined $cpid;
     if ($cpid) {
+        sysopen my $pidfh, $pidfile, $soflag or die "$pidfile:$!";
         print {$pidfh} $cpid, "\n";
         close $pidfh;
         wait;
@@ -156,7 +160,7 @@ eval {
     }
     alarm 0;
 };
-cleanup( ( $? >> 8 ) || $@ );
+cleanup( $? || $@ );
 
 1;
 __END__
