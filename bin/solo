@@ -1,4 +1,100 @@
 #!/usr/bin/env perl
+use strict;
+use warnings;
+use Time::HiRes qw/alarm/;
+use Getopt::Std;
+use Errno qw/:POSIX/;
+use File::Basename qw/basename/;
+use File::Spec qw/catfile/;
+use POSIX qw/:sys_wait_h strerror/;
+use Fcntl qw/:DEFAULT/;
+
+our $VERSION = sprintf "%d.%02d", q$Revision: 0.6 $ =~ /(\d+)/g;
+
+use constant DEBUG => 0;
+
+sub usage { exec 'pod2usage', $0 or die "pod2usage: $!" }
+
+getopts 'ft:K:P:' => \my %opt;
+
+my $cmd = shift or usage();
+
+my $timeout = $opt{t} ? 0 + $opt{t} : 86400;
+
+my $pidfile = $opt{P} || do {
+    my $dir = $> ? '/var/tmp' : '/var/run';
+    File::Spec->catfile( $dir, basename($cmd) . '.pid' );
+};
+
+sub readpidfile {
+    open my $fh, '<', $pidfile or die "$pidfile: $!";
+    my @lines = <$fh>;
+    close $fh or die "$pidfile: $!";
+    chomp @lines;
+    return @lines;
+}
+
+my $soflag = O_WRONLY|O_CREAT|O_EXCL;
+
+if ( -f $pidfile ) {
+    my @lines = readpidfile();
+    if ( @lines == 1 ) {
+        die "$cmd: already running ($lines[0]).\n";
+    }
+    else {
+        if ( $opt{f} ) {
+            $soflag = O_WRONLY;
+        }
+        else {
+            die "$cmd: Last session ended abnormally: ",
+              strerror( $lines[1] ), " ($lines[1]).\n";
+        }
+    }
+}
+
+my $ksig = $opt{K} || 'TERM';
+
+sub cleanup {
+    my $code = shift || 0;
+    warn $code if DEBUG;
+    $code = 0 if $code =~ /^[A-Z]+$/;    # via signal handler
+    $code >>= 8 if $code >= 256;          # timed out
+    my @lines = readpidfile();
+    kill $ksig => $lines[0];
+    if ( !$code ) {
+        unlink $pidfile;
+    }
+    else {
+        open my $pidfh, '>>', $pidfile or die "$pidfile:$!";
+        print {$pidfh} $code, "\n";
+        close $pidfh;
+        warn "$cmd: ", strerror($code), "\n";
+    }
+    exit $code;
+}
+
+$SIG{INT} = $SIG{TERM} = \&cleanup;
+
+eval {
+    local $SIG{ALRM} = sub { die ETIMEDOUT, "\n" };
+    alarm $timeout;
+    my $cpid = fork();
+    die $! unless defined $cpid;
+    if ($cpid) {
+        sysopen my $pidfh, $pidfile, $soflag or die "$pidfile: $!";
+        print {$pidfh} $cpid, "\n";
+        close $pidfh;
+        wait;
+    }
+    else {
+        exec {$cmd} $cmd, @ARGV or die "$cmd: $!";
+    }
+    alarm 0;
+};
+cleanup( $? || $@ );
+
+1;
+__END__
 
 =head1 NAME
 
@@ -6,7 +102,7 @@ solo - run only one process up to given timeout.
 
 =head1 VERSION
 
-$Id: solo,v 0.5 2013/03/01 13:50:48 dankogai Exp dankogai $
+$Id: solo,v 0.6 2013/03/02 01:24:19 dankogai Exp dankogai $
 
 =head1 SYNOPSIS
 
@@ -61,106 +157,3 @@ copy of the full license at:
 L<http://www.perlfoundation.org/artistic_license_2_0>
 
 =cut
-
-use strict;
-use warnings;
-use Time::HiRes qw/alarm/;
-use Getopt::Std;
-use Errno qw/:POSIX/;
-use File::Basename qw/basename/;
-use File::Spec qw/catfile/;
-use POSIX qw/:sys_wait_h strerror/;
-use Fcntl qw/:DEFAULT/;
-
-our $VERSION = sprintf "%d.%02d", q$Revision: 0.5 $ =~ /(\d+)/g;
-
-use constant DEBUG => 0;
-
-sub usage { exec 'pod2text', $0 }
-
-getopts 'ft:K:P:' => \my %opt;
-
-my $cmd = shift or usage();
-
-my $timeout = $opt{t} ? 0 + $opt{t} : 86400;
-
-if ( !-x $cmd ) {
-    my $which = qx/which $cmd/;
-    chomp $which;
-    die "$cmd: Command not found.\n" unless $which;
-    $cmd = $which;
-}
-my $pidfile = $opt{P} || do {
-    my $dir = $> ? '/var/tmp' : '/var/run';
-    File::Spec->catfile( $dir, basename($cmd) . '.pid' );
-};
-
-sub readpidfile {
-    open my $fh, '<', $pidfile or die "$pidfile:$!";
-    my @lines = <$fh>;
-    close $fh or die "$pidfile:$!";
-    chomp @lines;
-    return @lines;
-}
-
-my $soflag = O_WRONLY|O_CREAT|O_EXCL;
-
-if ( -f $pidfile ) {
-    my @lines = readpidfile();
-    if ( @lines == 1 ) {
-        die "$cmd: already running ($lines[0]).\n";
-    }
-    else {
-        if ( $opt{f} ) {
-            $soflag = O_WRONLY;
-        }
-        else {
-            die "$cmd: Last session ended abnormally: ",
-              strerror( $lines[1] ), " ($lines[1]).\n";
-        }
-    }
-}
-
-my $ksig = $opt{K} || 'TERM';
-
-sub cleanup {
-    my $code = shift || 0;
-    warn $code if DEBUG;
-    $code = 0 if $code =~ /^[A-Z]+$/;    # via signal handler
-    $code >>= 8 if $code >= 256;          # timed out
-    my @lines = readpidfile();
-    kill $ksig => $lines[0];
-    if ( !$code ) {
-        unlink $pidfile;
-    }
-    else {
-        open my $pidfh, '>>', $pidfile or die "$pidfile:$!";
-        print {$pidfh} $code, "\n";
-        close $pidfh;
-        warn "$cmd: ", strerror($code), "\n";
-    }
-    exit $code;
-}
-
-$SIG{INT} = $SIG{TERM} = \&cleanup;
-
-eval {
-    local $SIG{ALRM} = sub { die ETIMEDOUT, "\n" };
-    alarm $timeout;
-    my $cpid = fork();
-    die $! unless defined $cpid;
-    if ($cpid) {
-        sysopen my $pidfh, $pidfile, $soflag or die "$pidfile:$!";
-        print {$pidfh} $cpid, "\n";
-        close $pidfh;
-        wait;
-    }
-    else {
-        exec $cmd, @ARGV;
-    }
-    alarm 0;
-};
-cleanup( $? || $@ );
-
-1;
-__END__

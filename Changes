@@ -1,7 +1,13 @@
 #
 # Revision history for App-solo
 #
-$Revision: 0.5 $ $Date: 2013/03/01 13:50:48 $
+$Revision: 0.6 $ $Date: 2013/03/02 01:24:19 $
+! bin/solo
+  * now uses pod2usage instead of pod2text as document grows.
+  * pod section is now at the tail of the script
+  * reflected more security suggestions by @satoh_fumiyasu
+
+0.05 2013/03/01 13:50:48
 ! bin/solo
   Addressed: unlikely yet possible race condition noted by @satoh_fumiyasu
   https://twitter.com/satoh_fumiyasu/status/307469411332272128
