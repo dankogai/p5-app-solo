@@ -1,15 +1,15 @@
 #!/usr/bin/env perl
 use strict;
 use warnings;
-use Time::HiRes qw/alarm/;
-use Getopt::Std;
 use Errno qw/:POSIX/;
+use Fcntl qw/:DEFAULT/;
 use File::Basename qw/basename/;
 use File::Spec qw/catfile/;
+use Getopt::Std;
 use POSIX qw/:sys_wait_h strerror/;
-use Fcntl qw/:DEFAULT/;
+use Time::HiRes qw/alarm/;
 
-our $VERSION = sprintf "%d.%02d", q$Revision: 0.6 $ =~ /(\d+)/g;
+our $VERSION = sprintf "%d.%02d", q$Revision: 0.7 $ =~ /(\d+)/g;
 
 use constant DEBUG => 0;
 
@@ -34,7 +34,7 @@ sub readpidfile {
     return @lines;
 }
 
-my $soflag = O_WRONLY|O_CREAT|O_EXCL;
+my $soflag = O_WRONLY | O_CREAT | O_EXCL;
 
 if ( -f $pidfile ) {
     my @lines = readpidfile();
@@ -55,10 +55,11 @@ if ( -f $pidfile ) {
 my $ksig = $opt{K} || 'TERM';
 
 sub cleanup {
-    my $code = shift || 0;
-    warn $code if DEBUG;
-    $code = 0 if $code =~ /^[A-Z]+$/;    # via signal handler
-    $code >>= 8 if $code >= 256;          # timed out
+    my ( $code, $eval ) = @_;
+    warn "code = $code" if DEBUG;
+    warn "eval = $eval" if DEBUG;
+    $code = 0     if $code =~ /^[A-Z]+$/;    # via signal handler
+    $code = $eval if $eval;                  # timed out
     my @lines = readpidfile();
     kill $ksig => $lines[0];
     if ( !$code ) {
@@ -73,25 +74,25 @@ sub cleanup {
     exit $code;
 }
 
-$SIG{INT} = $SIG{TERM} = \&cleanup;
-
 eval {
     local $SIG{ALRM} = sub { die ETIMEDOUT, "\n" };
     alarm $timeout;
     my $cpid = fork();
     die $! unless defined $cpid;
     if ($cpid) {
+        $SIG{INT} = $SIG{TERM} = \&cleanup;
         sysopen my $pidfh, $pidfile, $soflag or die "$pidfile: $!";
         print {$pidfh} $cpid, "\n";
         close $pidfh;
         wait;
     }
     else {
-        exec {$cmd} $cmd, @ARGV or die "$cmd: $!";
+        my $err = exec {$cmd} $cmd, @ARGV;
+        exit $err;    # happens only when exec failed
     }
     alarm 0;
 };
-cleanup( $? || $@ );
+cleanup( $?, $@ );
 
 1;
 __END__
@@ -102,7 +103,7 @@ solo - run only one process up to given timeout.
 
 =head1 VERSION
 
-$Id: solo,v 0.6 2013/03/02 01:24:19 dankogai Exp dankogai $
+$Id: solo,v 0.7 2013/03/02 02:33:51 dankogai Exp dankogai $
 
 =head1 SYNOPSIS
 
